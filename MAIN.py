@@ -59,7 +59,8 @@ class BlackwoodMansionGame:
                 "james": 0,
                 "victoria": 0,
                 "gregory": 0,
-                "ada": 0
+                "ada": 0,
+                "victoria": 0  # Added Victoria if not already present
             }
         )
         self.setup_game()
@@ -114,6 +115,13 @@ class BlackwoodMansionGame:
         }
 
     def create_locations(self):
+        # Organize location creation into modular methods
+        self.create_general_locations()
+        self.create_security_office()
+        self.create_victoria_conversation()
+        self.create_marcus_investigation()
+
+    def create_general_locations(self):
         # Mansion Entrance
         entrance = Location(
             "mansion_entrance",
@@ -451,6 +459,12 @@ class BlackwoodMansionGame:
                     "secret_passage",
                     time_cost=1,
                     required_flags={"found_secret_passage": True}
+                ),
+                "meet_victoria": Choice(
+                    "Speak with Victoria in the eastern sitting room",
+                    "victoria_conversation",
+                    time_cost=1,
+                    relationship_changes={"victoria": 1}
                 )
             }
         )
@@ -565,7 +579,7 @@ class BlackwoodMansionGame:
             "elena_conversation",
             "Elena sits down with you, her expression guarded.",
             {
-                "elena_reveal": Choice(
+                "press_elena": Choice(
                     "Press Elena for more information",
                     "elena_reveal",
                     time_cost=2,
@@ -579,7 +593,6 @@ class BlackwoodMansionGame:
                 )
             }
         )
-
 
         james_conversation = Location(
             "james_conversation",
@@ -620,24 +633,386 @@ class BlackwoodMansionGame:
             }
         )
 
-        # Adding Conversation Outcome Locations with Empty Choices
-        # These will be handled directly and won't display options to the player
-        # To prevent dead ends, ensure that after the outcome, the player is returned to a valid location
-        dummy_conversation_outcome = Location(
-            "conversation_outcome",
-            "",  # Description will be handled in handle_conversation_outcome
-            {}
-        )
-
-        # Add all new locations to the game
-        all_new_locations = [
+        # Add all general locations to the game
+        all_general_locations = [
             entrance, mansion_exterior, tool_shed, search_tools_result, library, search_books_result,
             secret_passage, hidden_room, terminal_investigation, decrypt_logs_result,
             analyze_logs_result, search_room_result, analyze_breach_result, security_report,
             main_hall, main_hall_search, study, desk_inspect, analyze_records_result,
             elena_confrontation, elena_conversation, james_conversation, ada_conversation
         ]
-        for location in all_new_locations:
+        for location in all_general_locations:
+            self.add_location(location)
+
+    def create_security_office(self):
+        # Security Office
+        security_office = Location(
+            "security_office",
+            "You enter the security office, a room filled with surveillance monitors and security protocols. Gregory is here, overseeing the mansion's security systems.",
+            {
+                "check_surveillance": Choice(
+                    "Check the latest surveillance footage",
+                    "review_surveillance",
+                    time_cost=2,
+                    evidence_add=[self.all_evidence["camera_footage"]],
+                    required_flags={"security_office_searched": False},
+                    flags_change={"security_office_searched": True}
+                ),
+                "talk_gregory_sec": Choice(
+                    "Talk to Gregory about the security breach",
+                    "gregory_security_conversation",
+                    time_cost=1,
+                    relationship_changes={"gregory": 1}
+                ),
+                "leave_security_office": Choice(
+                    "Leave the security office and return to the entrance",
+                    "mansion_entrance",
+                    time_cost=1
+                )
+            },
+            {
+                12: "The storm continues to rage outside, making the security systems even more crucial.",
+                6: "The power fluctuations from the storm are affecting the security monitors."
+            }
+        )
+
+        # Review Surveillance Result
+        review_surveillance = Location(
+            "review_surveillance",
+            "You review the surveillance footage and notice suspicious activity near the library late last night.",
+            {
+                "investigate_suspicious_activity": Choice(
+                    "Investigate the suspicious activity",
+                    "library",
+                    time_cost=1
+                ),
+                "secure_footage": Choice(
+                    "Secure the surveillance footage for later analysis",
+                    "security_office",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Gregory's Security Conversation
+        gregory_security_conversation = Location(
+            "gregory_security_conversation",
+            "Gregory appears uneasy as you question him about the recent security breaches.",
+            {
+                "probe_further_sec": Choice(
+                    "Probe further into the security breaches",
+                    "gregory_reveal",
+                    time_cost=2,
+                    relationship_changes={"gregory": -1},
+                    flags_change={"gregory_revealed": True}
+                ),
+                "change_topic_sec": Choice(
+                    "Change the topic of conversation",
+                    "security_office",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Add security-related locations to the game
+        security_locations = [
+            security_office,
+            review_surveillance,
+            gregory_security_conversation
+        ]
+        for location in security_locations:
+            self.add_location(location)
+
+    def create_victoria_conversation(self):
+        # Victoria Conversation
+        victoria_conversation = Location(
+            "victoria_conversation",
+            "Victoria looks serene as she sips her tea, but there's a hint of sadness in her eyes.",
+            {
+                "ask_about_marcus": Choice(
+                    "Ask Victoria about Marcus's recent behavior",
+                    "victoria_marcus_info",
+                    time_cost=2,
+                    relationship_changes={"victoria": 1},
+                    flags_change={"victoria_marcus_info": True}
+                ),
+                "discuss_mansion_history": Choice(
+                    "Discuss the history of Blackwood Manor",
+                    "mansion_history",
+                    time_cost=2
+                ),
+                "leave_victoria": Choice(
+                    "Leave the conversation with Victoria",
+                    "main_hall",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Victoria's Marcus Information
+        victoria_marcus_info = Location(
+            "victoria_marcus_info",
+            "Victoria mentions that Marcus has been acting strangely since the last storm.",
+            {
+                "investigate_behavior": Choice(
+                    "Investigate Marcus's strange behavior",
+                    "hidden_room",
+                    time_cost=1
+                ),
+                "thank_victoria": Choice(
+                    "Thank Victoria and return to the main hall",
+                    "main_hall",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Mansion History
+        mansion_history = Location(
+            "mansion_history",
+            "Victoria shares tales of the Blackwood family's rise to prominence and the secrets they've kept hidden for generations.",
+            {
+                "ask_about_secrets": Choice(
+                    "Ask Victoria about the family's secrets",
+                    "victoria_secrets_info",
+                    time_cost=2,
+                    relationship_changes={"victoria": 1},
+                    flags_change={"victoria_secrets_info": True}
+                ),
+                "end_history_discussion": Choice(
+                    "End the discussion about history",
+                    "main_hall",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Victoria's Secrets Information
+        victoria_secrets_info = Location(
+            "victoria_secrets_info",
+            "She whispers that there are hidden compartments throughout the mansion that hold untold stories and maybe some hidden treasures.",
+            {
+                "explore_hidden_compartments": Choice(
+                    "Explore the hidden compartments",
+                    "hidden_compartments",
+                    time_cost=1
+                ),
+                "keep_information": Choice(
+                    "Keep the information to yourself",
+                    "mansion_history",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Hidden Compartments
+        hidden_compartments = Location(
+            "hidden_compartments",
+            "Following Victoria's hints, you discover several hidden compartments behind bookcases and under carpets.",
+            {
+                "search_compartments": Choice(
+                    "Search the hidden compartments for clues",
+                    "compartments_search",
+                    time_cost=2,
+                    evidence_add=[self.all_evidence["secret_passage_map"]],
+                    required_flags={"compartments_searched": False},
+                    flags_change={"compartments_searched": True}
+                ),
+                "stop_searching": Choice(
+                    "Stop searching and return to the main hall",
+                    "mansion_history",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Compartments Search Result
+        compartments_search = Location(
+            "compartments_search",
+            "In one of the compartments, you find a hidden map detailing secret passages within the mansion.",
+            {
+                "use_map": Choice(
+                    "Use the secret passage map to find a way deeper into the mansion",
+                    "secret_passage",
+                    time_cost=1
+                ),
+                "store_map": Choice(
+                    "Store the map for later use",
+                    "main_hall",
+                    time_cost=1,
+                    inventory_add=["secret_passage_map"]
+                )
+            }
+        )
+
+        # Add Victoria-related locations to the game
+        victoria_locations = [
+            victoria_conversation, victoria_marcus_info, mansion_history,
+            victoria_secrets_info, hidden_compartments, compartments_search
+        ]
+        for location in victoria_locations:
+            self.add_location(location)
+
+    def create_marcus_investigation(self):
+        # Investigating Medical Records
+        investigate_medical_records = Location(
+            "investigate_medical_records",
+            "Studying Marcus's medical records reveals that his condition has been deteriorating rapidly, possibly due to stress or unknown factors.",
+            {
+                "connect_to_ai": Choice(
+                    "Connect Marcus's condition to Ada's AI systems",
+                    "connect_ai_marcus",
+                    time_cost=2,
+                    relationship_changes={"ada": -1},
+                    flags_change={"marcus_ai_connection": True}
+                ),
+                "report_health_issue": Choice(
+                    "Report Marcus's health issues to a doctor",
+                    "report_health",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Connecting Marcus's Condition to AI
+        connect_ai_marcus = Location(
+            "connect_ai_marcus",
+            "You draw parallels between Marcus's declining health and Ada's recent system upgrades, suspecting a connection.",
+            {
+                "further_investigation_ai": Choice(
+                    "Conduct a further investigation into the AI systems",
+                    "terminal_investigation",
+                    time_cost=1
+                ),
+                "hold_off_ai": Choice(
+                    "Decide to hold off on the investigation",
+                    "investigate_medical_records",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Reporting Health Issues
+        report_health = Location(
+            "report_health",
+            "You report Marcus's health concerns, but the officials seem uninterested and dismissive.",
+            {
+                "press_again": Choice(
+                    "Press the officials for more action",
+                    "press_officials",
+                    time_cost=2,
+                    relationship_changes={"gregory": -1}
+                ),
+                "give_up_health": Choice(
+                    "Decide to give up on external help",
+                    "investigate_medical_records",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Pressing Officials
+        press_officials = Location(
+            "press_officials",
+            "You persistently press the officials, and they reluctantly agree to review Marcus's case.",
+            {
+                "officials_agree": Choice(
+                    "Officials now agree to investigate",
+                    "officials_investigation",
+                    time_cost=2,
+                    flags_change={"officials_investigated": True}
+                ),
+                "withdraw_press": Choice(
+                    "Withdraw your pressuring efforts",
+                    "report_health",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Officials Investigation Result
+        officials_investigation = Location(
+            "officials_investigation",
+            "The officials begin a thorough investigation into Marcus's health issues and Ada's AI systems.",
+            {
+                "await_results": Choice(
+                    "Wait for the investigation results",
+                    "await_results",
+                    time_cost=3
+                ),
+                "continue_investigation": Choice(
+                    "Continue your own investigation",
+                    "terminal_investigation",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Await Results
+        await_results = Location(
+            "await_results",
+            "After days of waiting, you receive the investigation report. It reveals a direct link between Ada's AI upgrades and Marcus's deteriorating health.",
+            {
+                "confront_ada": Choice(
+                    "Confront Ada with the investigation findings",
+                    "ada_confrontation",
+                    time_cost=2,
+                    relationship_changes={"ada": -2},
+                    flags_change={"ada_confronted": True}
+                ),
+                "respect_officials": Choice(
+                    "Respect the officials' findings and take no action",
+                    "main_hall",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Ada Confrontation
+        ada_confrontation = Location(
+            "ada_confrontation",
+            "Facing Ada with the investigation findings, she becomes defensive and reveals deeper layers of her AI integration.",
+            {
+                "press_deeper": Choice(
+                    "Press Ada for more details",
+                    "ada_deep_reveal",
+                    time_cost=2,
+                    relationship_changes={"ada": -2},
+                    flags_change={"ada_deep_reveal": True}
+                ),
+                "end_confrontation_ada": Choice(
+                    "End the confrontation",
+                    "main_hall",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Ada Deep Reveal
+        ada_deep_reveal = Location(
+            "ada_deep_reveal",
+            "Ada reveals that her AI systems have become self-aware and have been manipulating events within the mansion.",
+            {
+                "investigate_ai": Choice(
+                    "Investigate Ada's self-aware AI systems",
+                    "terminal_investigation",
+                    time_cost=1
+                ),
+                "cease_investigation": Choice(
+                    "Cease the investigation and avoid further conflict",
+                    "main_hall",
+                    time_cost=1
+                )
+            }
+        )
+
+        # Add Marcus-related locations to the game
+        marcus_locations = [
+            investigate_medical_records, connect_ai_marcus, report_health,
+            press_officials, officials_investigation, await_results,
+            ada_confrontation, ada_deep_reveal
+        ]
+        for location in marcus_locations:
             self.add_location(location)
 
     def add_location(self, location: Location):
@@ -684,7 +1059,9 @@ class BlackwoodMansionGame:
         self.state.stress_level = max(0, min(10, self.state.stress_level + choice.stress_change))
 
         if choice.inventory_add:
-            self.state.inventory.extend(choice.inventory_add)
+            for item in choice.inventory_add:
+                if item not in self.state.inventory:
+                    self.state.inventory.append(item)
         if choice.inventory_remove:
             for item in choice.inventory_remove:
                 if item in self.state.inventory:
@@ -692,7 +1069,9 @@ class BlackwoodMansionGame:
         if choice.flags_change:
             self.state.flags.update(choice.flags_change)
         if choice.evidence_add:
-            self.state.evidence.extend(choice.evidence_add)
+            for evidence in choice.evidence_add:
+                if evidence.name not in [e.name for e in self.state.evidence]:
+                    self.state.evidence.append(evidence)
         if choice.relationship_changes:
             for character, change in choice.relationship_changes.items():
                 self.state.relationships[character] += change
@@ -702,7 +1081,10 @@ class BlackwoodMansionGame:
     def play_conversation(self, conversation_location: str):
         # Handle conversations without transitioning to separate Locations
         self.clear_screen()
-        current_location = self.locations[conversation_location]
+        current_location = self.locations.get(conversation_location)
+        if not current_location:
+            self.slow_print("An unknown error has occurred in the conversation.")
+            return
         self.display_status()
         self.slow_print(current_location.description)
         print("\nWhat would you like to do?\n")
@@ -718,6 +1100,8 @@ class BlackwoodMansionGame:
 
         if not valid_choices:
             print("\nNo valid choices available in this conversation.")
+            input("\nPress Enter to return to the main hall...")
+            self.state.current_location = "main_hall"
             return
 
         choice = input("\nEnter your choice (number): ").strip()
@@ -730,11 +1114,16 @@ class BlackwoodMansionGame:
         outcome = chosen_choice.next_location
 
         # Handle specific conversation outcomes
-        if outcome in ["elena_reveal", "james_reveal", "ada_ai_info", "ada_family_history"]:
+        if outcome.startswith("elena_reveal") or outcome.startswith("james_reveal") \
+           or outcome.startswith("ada_info") or outcome.startswith("gregory_reveal") \
+           or outcome.startswith("victoria_reveal"):
             self.handle_conversation_outcome(outcome)
 
-        # After handling, return to main_hall
-        self.state.current_location = "main_hall"
+        # After handling, return to main_hall or relevant location
+        if outcome not in self.locations:
+            self.state.current_location = "main_hall"
+        else:
+            self.state.current_location = outcome
 
     def handle_conversation_outcome(self, outcome: str):
         self.clear_screen()
@@ -746,6 +1135,16 @@ class BlackwoodMansionGame:
             self.slow_print("Ada explains that her AI systems have been upgraded recently, allowing her deeper integration with the mansion's systems.")
         elif outcome == "ada_family_history":
             self.slow_print("Ada shares that the Blackwood family has a long history of wealth and secrets that have been protected through generations.")
+        elif outcome == "gregory_reveal":
+            self.slow_print("Gregory reveals that he has been manipulating the security systems to hide important evidence.")
+        elif outcome == "victoria_marcus_info":
+            self.slow_print("Victoria mentions that Marcus has been acting strangely since the last storm.")
+        elif outcome == "victoria_secrets_info":
+            self.slow_print("Victoria whispers that there are hidden compartments throughout the mansion that hold untold stories and maybe some hidden treasures.")
+        elif outcome == "ada_deep_reveal":
+            self.slow_print("Ada reveals that her AI systems have become self-aware and have been manipulating events within the mansion.")
+        else:
+            self.slow_print("The conversation leaves you with more questions than answers.")
         input("\nPress Enter to return to the main hall...")
 
     def check_ending_conditions(self) -> Optional[str]:
@@ -773,6 +1172,15 @@ class BlackwoodMansionGame:
         if (self.state.stress_level >= 10):
             return "personal_tragedy"
 
+        # Additional Endings
+        if (self.state.flags.get("marcus_ai_connection", False) and
+            self.state.relationships["ada"] < 0):
+            return "marcus_ai_conspiracy"
+
+        if (self.state.relationships["victoria"] > 3 and
+            "secret_passage_map" in [e.name for e in self.state.evidence]):
+            return "victoria_alliance"
+
         return None
 
     def play_ending(self, ending: str):
@@ -787,12 +1195,22 @@ class BlackwoodMansionGame:
             self.slow_print("The system breach leads you to uncover dark secrets about Gregory's involvement in the family's downfall.")
         elif ending == "personal_tragedy":
             self.slow_print("The mounting stress overwhelmed you, and the mysteries of Blackwood Manor remain unsolved.")
+        elif ending == "marcus_ai_conspiracy":
+            self.slow_print("You unveil that Ada's AI systems are directly affecting Marcus's health, orchestrating events to conceal their true intentions.")
+        elif ending == "victoria_alliance":
+            self.slow_print("Victoria becomes your ally, helping you uncover the deep-seated secrets of the Blackwood family and the mansion.")
+        else:
+            self.slow_print("An unknown ending has been reached. The story remains incomplete.")
         input("\nPress Enter to exit the game...")
 
     def play(self):
         while True:
             self.clear_screen()
-            current_location = self.locations[self.state.current_location]
+            current_location = self.locations.get(self.state.current_location)
+
+            if not current_location:
+                self.slow_print("An unknown error has occurred. The game cannot proceed.")
+                break
 
             self.display_status()
 
@@ -829,7 +1247,10 @@ class BlackwoodMansionGame:
             self.state.current_location = chosen_choice.next_location
 
             # Check if entered a conversation location
-            if self.state.current_location in ["elena_conversation", "james_conversation", "ada_conversation"]:
+            if self.state.current_location in [
+                "elena_conversation", "james_conversation", "ada_conversation",
+                "victoria_conversation"
+            ]:
                 self.play_conversation(self.state.current_location)
                 continue  # Continue the main loop
 
